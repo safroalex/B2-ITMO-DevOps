@@ -9,8 +9,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 USER airflow
-COPY ./dags ./dags/
-COPY ./spark ./spark/
+COPY ./lab1/dags/ ./dags/
+COPY ./lab2/dags/ ./dags/
+COPY ./lab2/spark/ ./spark/
 RUN pip install --no-cache-dir \
     apache-airflow-providers-apache-spark==4.1.1 \
     pyspark==3.5.0

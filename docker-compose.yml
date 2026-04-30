@@ -11,9 +11,10 @@ x-airflow-common: &airflow-common
     # Spark connection via env var — не нужно создавать вручную в UI
     AIRFLOW_CONN_SPARK_LOCAL: '{"conn_type": "spark", "host": "spark://spark-master", "port": 7077}'
   volumes:
-    - ./dags:/opt/airflow/dags
+    - ./lab1/dags:/opt/airflow/dags/lab1
+    - ./lab2/dags:/opt/airflow/dags/lab2
     - ./logs:/opt/airflow/logs
-    - ./spark:/opt/airflow/spark
+    - ./lab2/spark:/opt/airflow/spark
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
     postgres:
@@ -44,9 +45,9 @@ services:
     command:
       - -c
       - |
-        mkdir -p /sources/logs /sources/dags /sources/spark
-        chown -R 50000:0 /sources/logs /sources/dags /sources/spark
-        chmod -R g+rwx /sources/logs /sources/dags /sources/spark
+        mkdir -p /sources/logs /sources/lab1/dags /sources/lab2/dags /sources/lab2/spark
+        chown -R 50000:0 /sources/logs /sources/lab1/dags /sources/lab2/dags /sources/lab2/spark
+        chmod -R g+rwx /sources/logs /sources/lab1/dags /sources/lab2/dags /sources/lab2/spark
         exec /entrypoint airflow version
     environment:
       <<: *airflow-common-env
@@ -135,7 +136,7 @@ services:
     image: grafana/alloy:v1.5.1
     volumes:
       - ./logs:/opt/logs
-      - ./alloy.conf:/etc/alloy/config.alloy
+      - ./lab4/alloy.conf:/etc/alloy/config.alloy
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -150,7 +151,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./lab4/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - --config.file=/etc/prometheus/prometheus.yml
 
