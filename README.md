@@ -1,7 +1,8 @@
 # B2-ITMO-DevOps — Лабораторные работы
 
-Репозиторий содержит лабораторные работы 1, 2, 4 по курсу DevOps (ИТМО).  
-Все сервисы поднимаются единым `docker compose up -d` из корня репозитория.
+Репозиторий содержит лабораторные работы 1–4 по курсу DevOps (ИТМО).  
+ЛР 1, 2 и 4: стек поднимается единым `docker compose up -d` из корня репозитория.  
+ЛР 3: пайплайн GitLab CI/CD ([`.gitlab-ci.yml`](.gitlab-ci.yml)) и зарегистрированный runner с Docker.
 
 ## Структура репозитория
 
@@ -9,6 +10,7 @@
 .
 ├── Dockerfile                  # Кастомный образ Airflow с Java и PySpark
 ├── docker-compose.yml          # Все сервисы: Airflow, Spark, Loki, Prometheus, Grafana
+├── .gitlab-ci.yml              # ЛР 3: CI — test → build → deploy (+ manual clear-job)
 ├── .env.example                # Шаблон переменных окружения → скопировать в .env
 │
 ├── lab1/
@@ -20,7 +22,9 @@
 │   ├── spark/stats_job.py      # PySpark-джоб вычисления статистики
 │   └── screenshots/            # Скриншоты выполнения + Spark Master UI
 │
-├── lab3/                       # ЛР 3: CI/CD (выполняется отдельно)
+├── lab3/
+│   └── gitlab-runner/
+│       └── docker-compose.yml  # Пример: локальный GitLab Runner (docker.sock)
 │
 └── lab4/
     ├── alloy.conf              # Grafana Alloy: сбор логов Airflow → Loki
@@ -37,8 +41,8 @@
 ## Быстрый старт
 
 ```bash
-# 1. Клонировать репозиторий
-git clone https://github.com/safroalex/B2-ITMO-DevOps.git
+# 1. Клонировать репозиторий (SSH)
+git clone git@github.com:safroalex/B2-ITMO-DevOps.git
 cd B2-ITMO-DevOps
 
 # 2. Создать .env (Linux — автоматически, macOS — вручную)
@@ -97,6 +101,25 @@ docker compose ps              # все сервисы должны быть hea
 3. Нажать ▶ (Trigger DAG)
 4. Задача `spark_statistics_job` выполняется ~8 секунд → success
 5. Spark Master UI: http://localhost:4040 — видны воркер и история запусков
+
+## ЛР 3 — GitLab CI/CD
+
+Пайплайн описан в [`.gitlab-ci.yml`](.gitlab-ci.yml). Образ Airflow в CI собирается как **`airflow-itmo:latest`** — то же имя задано в `docker-compose.yml` (`image` + `build`), чтобы деплой поднимал собранный образ.
+
+**Стадии:**
+
+| Job | Stage | Назначение |
+|-----|-------|------------|
+| `test-job` | test | Проверка, что каталоги `lab2/dags` и `lab2/spark` непустые |
+| `build-job` | build | `docker build -t airflow-itmo:latest .` (не запускается для веток `feature/*`) |
+| `deploy-job` | deploy | `docker-compose up -d` только для веток `main`, `master`, `develop` |
+| `clear-job` | deploy | Вручную: остановка стека (`when: manual`) |
+
+**Runner:** у джоб указан тег **`local-mac`** — он должен совпадать с тегом зарегистрированного GitLab Runner (executor **docker**, доступ к хостовому **`/var/run/docker.sock`** для build/deploy).
+
+**Локальный runner (пример):** [lab3/gitlab-runner/docker-compose.yml](lab3/gitlab-runner/docker-compose.yml) — поднять на машине, где крутится Docker, затем `gitlab-runner register` по инструкции GitLab (URL инстанса, token проекта, тег `local-mac`).
+
+**Проверка:** после `git push` в GitLab откройте **CI/CD → Pipelines** — успешная цепочка test → build → deploy на вашем runner.
 
 ## ЛР 4 — Мониторинг: Loki + Prometheus + Grafana
 
