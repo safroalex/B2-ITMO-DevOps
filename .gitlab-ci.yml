@@ -1,0 +1,73 @@
+# ЛР 3 — GitLab CI/CD
+# Тег раннера должен совпадать с тегом при регистрации gitlab-runner (см. методичку).
+# Если у раннера другой тег — замени local-mac везде ниже.
+
+variables:
+  AIRFLOW_IMAGE: "airflow-itmo:latest"
+
+stages:
+  - test
+  - build
+  - deploy
+
+# Тест: на всех ветках; падает — пайплайн не идёт дальше.
+test-job:
+  stage: test
+  image: alpine:3.19
+  tags:
+    - local-mac
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_MERGE_REQUEST_IID
+  script:
+    - set -e
+    - test -d lab2/dags
+    - test -d lab2/spark
+    - test -n "$(ls -A lab2/dags)"
+    - test -n "$(ls -A lab2/spark)"
+    - echo "lab2/dags и lab2/spark на месте"
+
+# Билд: не автоматически для feature/*; на остальных — после успешного test.
+build-job:
+  stage: build
+  image: docker:latest
+  tags:
+    - local-mac
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^feature\//
+      when: never
+    - when: on_success
+  script:
+    - ls -la
+    - docker build -t "$AIRFLOW_IMAGE" .
+
+# Деплой: только main / master / develop (автоматически после build).
+deploy-job:
+  stage: deploy
+  image: tmaier/docker-compose:latest
+  tags:
+    - local-mac
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_success
+    - when: never
+  script:
+    - echo "Deploying stack..."
+    - ls -la
+    - docker-compose up -d
+    - echo "Application deployed."
+
+# Снести стек вручную (после лабы и т.п.).
+clear-job:
+  stage: deploy
+  image: tmaier/docker-compose:latest
+  tags:
+    - local-mac
+  when: manual
+  allow_failure: true
+  script:
+    - docker-compose down -v || docker-compose rm -sf
