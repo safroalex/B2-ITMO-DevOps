@@ -12,3 +12,19 @@ scrape_configs:
     static_configs:
       - targets:
           - airflow-webserver:8080
+
+  - job_name: spark-master
+    metrics_path: /metrics/master/prometheus/
+    static_configs:
+      - targets:
+          - spark-master:8080
+        labels:
+          component: master
+
+  - job_name: spark-worker
+    metrics_path: /metrics/prometheus/
+    static_configs:
+      - targets:
+          - spark-worker:8081
+        labels:
+          component: worker

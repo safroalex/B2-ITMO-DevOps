@@ -1,12 +1,14 @@
+# JRE без apt-get (на части сетей deb.debian.org недоступен при сборке)
+FROM eclipse-temurin:17-jre AS jre
+
 FROM apache/airflow:2.7.1
 
 WORKDIR /opt/airflow
 
 USER root
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends procps default-jre \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 USER airflow
 COPY ./lab1/dags/ ./dags/

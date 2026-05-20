@@ -125,8 +125,8 @@ docker compose ps              # все сервисы должны быть hea
 
 Конфигурации: [lab4/alloy.conf](lab4/alloy.conf), [lab4/prometheus.yml](lab4/prometheus.yml)
 
-Grafana Alloy читает логи из `logs/**/*.log` и пушит в Loki.  
-Prometheus скрейпит себя (метрика `up` по job `prometheus`).
+Grafana Alloy читает логи Airflow (`dag_id=*`, scheduler, dag_processor_manager) и Spark (`logs/spark-master/`, `logs/spark-worker/`) и пушит в Loki (`job="airflow"` и `job="spark"`).  
+Prometheus скрейпит: **prometheus**, **airflow-webserver**, **spark-master** (`/metrics/prometheus/`), **spark-worker** (`/metrics/prometheus/`).
 
 ### Первичная настройка Grafana
 
@@ -138,8 +138,9 @@ Prometheus скрейпит себя (метрика `up` по job `prometheus`)
    - URL: `http://prometheus:9090`
    - Нажать **Save & Test** → должно быть "Data source is working"
 4. **Dashboards → New → New dashboard → Add visualization**
-   - Панель 1 (Logs): тип **Logs**, источник Loki, запрос `{job="airflow"}`
-   - Панель 2 (Metrics): тип **Time series**, источник Prometheus, запрос `up`
+   - Панель 1 (Logs Airflow): тип **Logs**, Loki, запрос `{job="airflow"}`
+   - Панель 2 (Logs Spark): тип **Logs**, Loki, запрос `{job="spark"}`
+   - Панель 3 (Metrics): тип **Time series**, Prometheus, запрос `up` или `up{job=~"spark-.*"}`
 
 ### Проверка данных
 
@@ -147,7 +148,7 @@ Prometheus скрейпит себя (метрика `up` по job `prometheus`)
 # Проверить что Loki получает логи (должны появиться labels после запуска DAG)
 curl http://localhost:3100/loki/api/v1/labels
 
-# Проверить Prometheus targets (prometheus — UP, airflow — DOWN без statsd)
+# Проверить Prometheus targets (prometheus, spark-master, spark-worker — UP; airflow может быть DOWN без statsd)
 curl http://localhost:9090/api/v1/targets | python3 -m json.tool
 ```
 
@@ -165,5 +166,8 @@ docker compose down -v      # + удалить volumes (сброс базы Airf
 | `Permission denied` в логах Airflow | `chmod 777 logs/` |
 | Порт 7000 занят (macOS) | Маппинг `7001:7000` уже настроен в docker-compose.yml |
 | Spark "no resources accepted" | `SPARK_WORKER_MEMORY=2g` задан в docker-compose.yml |
-| Alloy не читает логи | Запустите DAG — логи появятся, Alloy подхватит автоматически |
+| Alloy не читает логи | Запустите DAG / подождите запись в `logs/` и `logs/spark-*`; перезапустите `alloy` при необходимости |
+| Spark не в Loki/Prometheus | Проверьте `SPARK_*_OPTS` в compose, targets `spark-master` / `spark-worker` в Prometheus |
 | Airflow инициализируется долго | Подождите 2–3 минуты после `docker compose up -d` |
+| Порт **8080** занят (старый `airflow-lab2`) | Остановите lab2: `docker stop airflow-lab2-airflow-webserver-1` или смените порт в compose |
+| Target **airflow** в Prometheus **down** | Нормально без statsd; Spark и `prometheus` targets должны быть **up** |
