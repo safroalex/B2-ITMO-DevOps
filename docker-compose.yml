@@ -109,6 +109,10 @@ services:
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     environment:
       SPARK_MASTER_MEMORY: 512m
+      SPARK_MASTER_OPTS: "-Dspark.ui.prometheus.enabled=true"
+    volumes:
+      - ./logs/spark-master:/opt/spark/logs
+      - ./lab4/spark-metrics.properties:/opt/spark/conf/metrics.properties:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,10 +122,15 @@ services:
     container_name: spark-worker
     ports:
       - "7001:7000"
+      - "8081:8081"
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     environment:
       SPARK_WORKER_MEMORY: 2g
       SPARK_WORKER_CORES: 1
+      SPARK_WORKER_OPTS: "-Dspark.ui.prometheus.enabled=true -Dspark.worker.ui.port=8081"
+    volumes:
+      - ./logs/spark-worker:/opt/spark/logs
+      - ./lab4/spark-metrics.properties:/opt/spark/conf/metrics.properties:ro
     depends_on:
       - spark-master
 
